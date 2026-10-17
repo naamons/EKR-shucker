@@ -105,20 +105,6 @@ both fills, and preservation of the original. It requires no packages, internet,
 parent checkout, or firmware. GitHub Actions runs it on pushes and pull requests.
 Browser download behavior and hardware use require separate verification.
 
-## Publishing this project
-
-Use the **contents of this directory** as the GitHub repository root. Publish
-`index.html`, `README.md`, `NOTICE.md`, `LICENSE`, `selftest.js`, `.gitignore`,
-and `.github/workflows/checks.yml`. The workflow assumes this directory is the
-repository root. Keep the license and notices with redistributed copies.
-
-The parent reverse-engineering workspace contains reference firmware, captures,
-and chat exports; it is not this project's public release. The ignore file helps
-exclude local inputs and outputs, but review staged files before each push.
-
-Keep the app self-contained and decrypt-only. Use synthetic fixtures when
-contributing and run the checks before submitting a change. Do not commit
-firmware, traces, private conversations, customer files, or generated outputs.
 
 ## License
 

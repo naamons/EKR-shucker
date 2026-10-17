@@ -87,10 +87,6 @@ and redact filenames, header details, and screenshots.
 - Size checks establish container shape, not authenticity. Very large files
   may exceed browser memory.
 
-The implementation derives from the parent EK1 reverse-engineering project's
-`ekr_core.js` and `bin_to_ekr.py`. Those files are not runtime dependencies or
-part of this standalone release. Tests use synthetic known-answer vectors;
-reference firmware, traces, and customer containers are not distributed here.
 
 ## Verification and contributions
 

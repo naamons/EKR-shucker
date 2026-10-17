@@ -55,7 +55,7 @@ or other third-party content.
 
 The project does not authorize copyright infringement, unauthorized access,
 redistribution of paid tunes, or unlawful vehicle modifications. It is not
-affiliated with, endorsed by, or supported by the EK1Pro or WinOLS vendors;
+affiliated with, endorsed by, or supported by the EK1 or WinOLS vendors;
 their names identify compatibility only.
 
 **The software is provided without warranty, to the extent permitted by law.**

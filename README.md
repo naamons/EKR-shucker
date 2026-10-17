@@ -2,7 +2,7 @@
 
 **Open your own EKR files in the tools you choose.**
 
-EKR Shucker is a standalone, offline browser tool that decrypts EK1Pro `.ekr`
+EKR Shucker is a standalone, offline browser tool that decrypts EK1 `.ekr`
 containers into raw `.bin` images for interoperability. It is intended for
 people who own or are licensed to use their files and are authorized to access
 and move their contents to another tool, including when the original workflow

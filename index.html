@@ -1,0 +1,1765 @@
+<!doctype html>
+<!--
+EKR Shucker — offline EKR-to-BIN interoperability tool.
+Copyright (C) 2026 EKR Shucker contributors
+SPDX-License-Identifier: GPL-3.0-only
+
+This program is free software: you can redistribute it and/or modify it under
+version 3 of the GNU General Public License as published by the Free Software
+Foundation. This program is distributed WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE, or https://www.gnu.org/licenses/gpl-3.0.html, for the full terms.
+See NOTICE.md for intended use, third-party rights, and limitations.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>EKR Shucker — EK1Pro container to BIN</title>
+<style>
+  :root {
+    --paper: #f7f7f3;
+    --ink: #17191c;
+    --rule: #d6d6cf;
+    --rule-soft: #e4e4de;
+    --muted: #5d5d57;
+    --tint: #efefea;
+    --blueprint: #1c3f94;
+    --blueprint-ink: #16337a;
+    --blueprint-tint: rgba(28, 63, 148, 0.1);
+    --green: #1f6b3a;
+    --red: #a32a1e;
+    --sans: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  html {
+    background: var(--paper);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--blueprint);
+    color: var(--paper);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--blueprint);
+    outline-offset: 2px;
+  }
+
+  .sheet {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 52px 32px 72px;
+  }
+
+  .masthead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 28px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 18px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(29px, 4.6vw, 38px);
+    font-weight: 650;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+  }
+
+  .lede {
+    margin: 10px 0 0;
+    max-width: 54ch;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .margin-note {
+    margin: 2px 0 0;
+    flex: none;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.65;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .label {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .mono { font-family: var(--mono); }
+  .muted { color: var(--muted); }
+  .caption {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10.5px;
+  }
+
+  .anatomy { margin-top: 26px; }
+
+  .anatomy-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .ruler {
+    display: grid;
+    grid-template-columns: 150px 18px minmax(0, 1fr);
+    height: 40px;
+    margin-top: 8px;
+    border: 1px solid var(--ink);
+    border-radius: 0;
+  }
+
+  .ruler-head {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    padding: 0 10px;
+    border-right: 1px solid var(--rule);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    line-height: 1.35;
+  }
+
+  .ruler-head strong {
+    color: var(--ink);
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .ruler-break { position: relative; background: var(--paper); }
+
+  .ruler-break::before,
+  .ruler-break::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--rule);
+    transform: skewX(-18deg);
+  }
+
+  .ruler-break::before { left: 5px; }
+  .ruler-break::after { left: 11px; }
+
+  .ruler-run {
+    position: relative;
+    overflow: hidden;
+    background-image: repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(10% - 1px),
+      var(--rule-soft) calc(10% - 1px),
+      var(--rule-soft) 10%
+    );
+  }
+
+  .ruler-fill {
+    position: absolute;
+    inset: 0;
+    background: var(--blueprint-tint);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 90ms ease-out;
+  }
+
+  .ruler-edge {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 1px;
+    background: var(--blueprint);
+    opacity: 0;
+    transform: translateX(0);
+    transition: transform 90ms ease-out, opacity 90ms ease-out;
+  }
+
+  .ruler-caption {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 6px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+  }
+
+  .step {
+    border-top: 1px solid var(--rule);
+    padding: 22px 0;
+  }
+
+  .step-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+
+  .step h2 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .step-no {
+    margin-right: 8px;
+    color: var(--blueprint-ink);
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+
+  .drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 132px;
+    padding: 24px;
+    border: 1px dashed var(--rule);
+    border-radius: 1px;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--sans);
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+
+  .drop:hover,
+  .drop:focus-visible {
+    border-color: var(--ink);
+    background: var(--tint);
+  }
+
+  .drop.drop-hot {
+    border-color: var(--blueprint);
+    background: var(--blueprint-tint);
+  }
+
+  .drop:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .drop-title {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .drop-sub {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .file-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 14px 16px;
+    border: 1px solid var(--rule);
+    border-radius: 1px;
+  }
+
+  .file-main {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .file-name {
+    font-size: 13px;
+    word-break: break-all;
+  }
+
+  .file-size {
+    color: var(--muted);
+    font-size: 10.5px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  #serial {
+    width: 100%;
+    max-width: 380px;
+    padding: 7px 2px;
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink);
+    caret-color: var(--blueprint);
+    font-family: var(--mono);
+    font-size: 16px;
+    letter-spacing: 0.04em;
+  }
+
+  #serial:focus {
+    outline: none;
+    border-bottom-color: var(--blueprint);
+    background: var(--blueprint-tint);
+  }
+
+  #serial::placeholder {
+    color: var(--muted);
+    opacity: 1;
+  }
+
+  #serial[aria-invalid="true"] {
+    border-bottom-color: var(--red);
+    color: var(--red);
+  }
+
+  #serial:disabled {
+    color: var(--muted);
+  }
+
+  .help {
+    margin: 0;
+    max-width: 68ch;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .field-error {
+    margin: 0;
+    color: var(--red);
+    font-size: 12px;
+  }
+
+  .suggest {
+    margin: 0;
+    color: var(--blueprint-ink);
+    font-size: 11.5px;
+  }
+
+  .action {
+    border-top: 1px solid var(--ink);
+    padding: 20px 0 0;
+  }
+
+  .action-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 16px;
+    border: 1px solid var(--ink);
+    border-radius: 1px;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 100ms ease;
+  }
+
+  .btn:hover { background: var(--tint); }
+
+  .btn:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+  }
+
+  .btn.primary {
+    height: 42px;
+    border-color: var(--blueprint);
+    background: var(--blueprint);
+    color: var(--paper);
+  }
+
+  .btn.primary:hover { background: var(--blueprint-ink); }
+  .btn.primary:disabled { background: var(--blueprint); }
+
+  .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--blueprint);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  .link:hover { color: var(--blueprint-ink); }
+  .link:disabled { opacity: 0.38; cursor: not-allowed; }
+
+  .run-status {
+    min-height: 1.5em;
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .run-status.busy { color: var(--blueprint-ink); }
+  .run-status.bad { color: var(--red); }
+
+  .result {
+    margin-top: 30px;
+    border-top: 1px solid var(--ink);
+    padding-top: 18px;
+  }
+
+  .result-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 14px;
+  }
+
+  .result h2 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .result h2:focus { outline: none; }
+
+  .stamp {
+    display: inline-block;
+    padding: 3px 9px;
+    border: 1.5px solid currentColor;
+    border-radius: 1px;
+    color: var(--green);
+    font-size: 9.5px;
+    font-weight: 750;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transform: rotate(-5deg);
+    animation: stamp-in 190ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
+  }
+
+  @keyframes stamp-in {
+    from { transform: rotate(-5deg) scale(1.5); opacity: 0; }
+    to { transform: rotate(-5deg) scale(1); opacity: 1; }
+  }
+
+  .result-file {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 12px 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .result-file-main {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .result-file .mono {
+    font-size: 12px;
+    word-break: break-all;
+  }
+
+  .stripped-row { border-top: 0; }
+
+  .fields {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    margin: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .fields dt {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    color: var(--muted);
+    font-size: 10.5px;
+    font-weight: 650;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .fields dd {
+    margin: 0;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    font-family: var(--mono);
+    font-size: 12px;
+    word-break: break-word;
+  }
+
+  .fields dd .sub {
+    display: block;
+    color: var(--muted);
+    font-size: 10.5px;
+  }
+
+  .strip {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .strip-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .strip h3 {
+    margin: 0 0 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  #strip-panel { margin-top: 14px; }
+
+  .strip-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .fill-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 10.5px;
+    font-weight: 650;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  #fill-byte {
+    height: 30px;
+    padding: 0 6px;
+    border: 1px solid var(--rule);
+    border-radius: 1px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  #fill-byte:focus-visible { outline: 2px solid var(--blueprint); outline-offset: 2px; }
+
+  .strip-table {
+    margin-top: 4px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .strip-row {
+    display: grid;
+    grid-template-columns: 1.1fr 0.8fr 1.1fr 1.2fr;
+    gap: 12px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    font-size: 11px;
+  }
+
+  .strip-row-head {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .strip-row .mono { font-size: 11px; word-break: break-all; }
+
+  .notice {
+    margin-top: 36px;
+    padding: 16px 0;
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .notice h2 {
+    margin: 0 0 6px;
+    color: var(--muted);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .notice p {
+    margin: 0;
+    max-width: 74ch;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 22px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10.5px;
+  }
+
+  .selftest-result.ok { color: var(--green); }
+  .selftest-result.bad { color: var(--red); }
+
+  body.busy .drop,
+  body.busy .file-row { cursor: progress; }
+
+  @media (max-width: 640px) {
+    .sheet { padding: 32px 20px 56px; }
+    .masthead { flex-direction: column; gap: 14px; }
+    .margin-note { text-align: left; white-space: normal; }
+    .step-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .ruler { grid-template-columns: 112px 14px minmax(0, 1fr); }
+    .file-row,
+    .result-file,
+    .strip-head { flex-direction: column; align-items: stretch; }
+    .action-row { flex-direction: column; align-items: stretch; }
+    .btn.primary { width: 100%; }
+    .fields { grid-template-columns: 1fr; }
+    .fields dt {
+      padding-bottom: 2px;
+      border-bottom: 0;
+    }
+    .fields dd { padding-top: 0; }
+    .strip-row { grid-template-columns: 1fr 1fr; }
+    .strip-row-head { display: none; }
+    .footer { align-items: flex-start; flex-direction: column; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<main class="sheet">
+  <header class="masthead">
+    <div>
+      <h1>EKR Shucker</h1>
+      <p class="lede">Turn an EK1Pro <span class="mono">.ekr</span> container back into its raw <span class="mono">.bin</span> image. Everything runs in this tab.</p>
+    </div>
+    <p class="margin-note">EKR → BIN<br>decrypt only<br>offline</p>
+  </header>
+
+  <section class="anatomy" aria-labelledby="anatomy-title">
+    <div class="anatomy-head">
+      <span class="label" id="anatomy-title">Container anatomy</span>
+      <span class="caption">0x40 header + image</span>
+    </div>
+    <div class="ruler">
+      <div class="ruler-head">
+        <strong>header</strong>
+        <span>0x00–0x3F</span>
+      </div>
+      <div class="ruler-break" aria-hidden="true"></div>
+      <div class="ruler-run" id="ruler-run" role="progressbar" aria-label="Image decryption progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="ruler-fill" id="ruler-fill"></div>
+        <div class="ruler-edge" id="ruler-edge"></div>
+      </div>
+    </div>
+    <div class="ruler-caption">
+      <span id="ruler-status">idle · choose a container</span>
+      <span id="ruler-percent">0%</span>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="step-file-title">
+    <div class="step-head">
+      <h2 id="step-file-title"><span class="step-no">01</span>Choose the container</h2>
+      <span class="margin-note">one .ekr file · nothing is uploaded</span>
+    </div>
+    <button class="drop" id="drop" type="button">
+      <span class="drop-title">Drop a .ekr container here</span>
+      <span class="drop-sub">or click to browse</span>
+    </button>
+    <input type="file" id="file" accept=".ekr,.EKR,application/octet-stream" hidden>
+    <div class="file-row" id="file-row" hidden>
+      <div class="file-main">
+        <span class="file-name mono" id="file-name"></span>
+        <span class="file-size mono" id="file-size"></span>
+      </div>
+      <button class="link" id="change-file" type="button">Change file</button>
+    </div>
+    <p class="field-error" id="file-error" hidden></p>
+  </section>
+
+  <section class="step" aria-labelledby="step-serial-title">
+    <div class="step-head">
+      <h2 id="step-serial-title"><span class="step-no">02</span>Enter the device serial</h2>
+      <span class="margin-note">12 characters · key source</span>
+    </div>
+    <div class="field">
+      <label class="field-label" for="serial">Device serial</label>
+      <input type="text" id="serial" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="TST000000001" aria-describedby="serial-help serial-note serial-error">
+      <p class="help" id="serial-help">The serial the container was built for. The last 9 characters are digits.</p>
+      <p class="suggest" id="serial-note" hidden></p>
+      <p class="field-error" id="serial-error" hidden></p>
+    </div>
+  </section>
+
+  <section class="action">
+    <div class="action-row">
+      <button class="btn primary" id="decrypt" type="button" disabled>Decrypt &amp; save .bin</button>
+    </div>
+    <p class="run-status" id="status" role="status" aria-live="polite">Choose a container and enter its serial.</p>
+  </section>
+
+  <section class="result" id="result" hidden aria-labelledby="result-title">
+    <div class="result-head">
+      <h2 id="result-title" tabindex="-1">Decrypted image</h2>
+      <span class="stamp">DECRYPTED</span>
+    </div>
+
+    <div class="result-file">
+      <div class="result-file-main">
+        <span class="label">Raw image</span>
+        <span class="mono" id="output-name"></span>
+        <span class="caption" id="output-size"></span>
+      </div>
+      <button class="btn" id="save" type="button">Save .bin</button>
+    </div>
+
+    <dl class="fields" id="fields"></dl>
+
+    <div class="strip">
+      <div class="strip-head">
+        <div>
+          <h3>No-read marker cleanup</h3>
+          <p class="help">Searches for the ASCII marker <span class="mono">noread</span> or <span class="mono">no read</span> (case-insensitive) and previews the block after it.</p>
+        </div>
+        <button class="btn" id="strip-scan" type="button">Strip no-read / hidden sig</button>
+      </div>
+
+      <div id="strip-panel" hidden>
+        <p class="run-status" id="strip-summary"></p>
+        <div id="strip-list"></div>
+        <div class="strip-actions">
+          <label class="fill-label" for="fill-byte">Fill byte
+            <select id="fill-byte">
+              <option value="0">00</option>
+              <option value="255">FF</option>
+            </select>
+          </label>
+          <button class="btn primary" id="strip-apply" type="button">Strip &amp; save .bin</button>
+          <button class="link" id="strip-cancel" type="button">Cancel</button>
+        </div>
+        <p class="help">Overwrites in place; file size and offsets stay the same. The original .bin is not changed.</p>
+      </div>
+
+      <div class="result-file stripped-row" id="stripped-row" hidden>
+        <div class="result-file-main">
+          <span class="label">Stripped image</span>
+          <span class="mono" id="stripped-name"></span>
+          <span class="caption" id="stripped-size"></span>
+        </div>
+        <button class="btn" id="save-stripped" type="button">Save stripped .bin</button>
+      </div>
+    </div>
+
+    <div class="action-row" style="margin-top: 18px;">
+      <button class="link" id="reset" type="button">Start over</button>
+    </div>
+  </section>
+
+  <aside class="notice" aria-labelledby="notice-title">
+    <h2 id="notice-title">Use notice</h2>
+    <p><strong>For interoperability of files you own only.</strong> Use this tool only with <span class="mono">.ekr</span> containers you own or are licensed to use, and only to move them to another tool you are authorized to use. It decrypts; it does not encrypt or modify the container. Files are processed locally. Not affiliated with the EK1Pro or WinOLS vendors. You must have authorization to access the contents; possession or purchase alone does not establish that authorization.</p>
+    <p>Provided as-is, without warranty, to the extent permitted by law. Decryption does not grant rights to redistribute tunes or firmware. Marker cleanup is a heuristic; it does not identify or guarantee removal of WinOLS signatures, and it does not repair ECU checksums. See <a href="NOTICE.md">Use and rights notice</a> and <a href="LICENSE">GPL-3.0 license</a>.</p>
+  </aside>
+
+  <footer class="footer">
+    <span>EKR Shucker · GPL-3.0-only · offline</span>
+    <span>
+      <button class="link" id="selftest" type="button">Run self-test</button>
+      <span class="selftest-result" id="selftest-result" role="status" aria-live="polite"></span>
+    </span>
+  </footer>
+</main>
+
+<script id="decrypt-core">
+(function (global) {
+  "use strict";
+
+  const HEADER_SIZE = 0x40;
+  const CHUNK_SIZE = 0x20000;
+  const DELTA = 0x9e3779b9;
+  const ROUNDS = 32;
+  const START_TOTAL = (ROUNDS * DELTA) >>> 0;
+  const BLANK_RUN = 64;
+  const MARKER_TEXT = ["noread", "no read"];
+  const MARKERS = MARKER_TEXT.map(asciiBytes);
+  const SERIAL_BLOB = new Uint8Array([
+    0x04, 0x07, 0x87, 0x09, 0x81, 0x08, 0x85, 0x05,
+    0x0b, 0x82, 0x0c, 0x84, 0x06, 0x0a, 0x83, 0x86,
+  ]);
+  const RECOVERY_SUFFIX = "1802517";
+  const SERIAL_RE = /^[\x21-\x7e]{12}$/;
+
+  class DecryptError extends Error {
+    constructor(message) {
+      super(message);
+      this.name = "DecryptError";
+    }
+  }
+
+  function asciiBytes(text) {
+    const out = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i++) out[i] = text.charCodeAt(i) & 0xff;
+    return out;
+  }
+
+  function lowerByte(b) {
+    return b >= 0x41 && b <= 0x5a ? b + 0x20 : b;
+  }
+
+  function hexToBytes(text) {
+    const clean = String(text).replace(/\s+/g, "");
+    if (clean.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(clean)) {
+      throw new DecryptError("invalid hex string");
+    }
+    const out = new Uint8Array(clean.length / 2);
+    for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.substr(i * 2, 2), 16);
+    return out;
+  }
+
+  function bytesToHex(bytes) {
+    let text = "";
+    for (let i = 0; i < bytes.length; i++) text += bytes[i].toString(16).padStart(2, "0");
+    return text;
+  }
+
+  function deriveKey(serial) {
+    if (typeof serial !== "string" || serial.length !== 12 || !SERIAL_RE.test(serial)) {
+      throw new DecryptError("serial must be 12 printable ASCII characters");
+    }
+    if (!/^[0-9]{9}$/.test(serial.slice(3))) {
+      throw new DecryptError("serial digits 4..12 must be decimal");
+    }
+    const digits = [];
+    for (let i = 0; i < 16; i++) {
+      const v = SERIAL_BLOB[i];
+      digits.push(v > 0x80 ? Number(RECOVERY_SUFFIX[v - 0x81]) : Number(serial[v - 1]));
+    }
+    const key = new Uint32Array(4);
+    for (let w = 0; w < 4; w++) {
+      let value = 0;
+      for (let d = 0; d < 4; d++) value = value * 10 + digits[w * 4 + d];
+      key[w] = value >>> 0;
+    }
+    return key;
+  }
+
+  function xteaDecryptInto(src, srcOffset, byteLength, dst, dstOffset, key) {
+    if (byteLength % 8 !== 0) {
+      throw new DecryptError("XTEA input must be a multiple of 8 bytes");
+    }
+    for (let off = 0; off < byteLength; off += 8) {
+      const s = srcOffset + off;
+      let v0 = (src[s] | (src[s + 1] << 8) | (src[s + 2] << 16) | (src[s + 3] << 24)) >>> 0;
+      let v1 = (src[s + 4] | (src[s + 5] << 8) | (src[s + 6] << 16) | (src[s + 7] << 24)) >>> 0;
+      let total = START_TOTAL;
+      for (let i = 0; i < ROUNDS; i++) {
+        let mix =
+          (((((v0 << 4) >>> 0) ^ (v0 >>> 5)) + v0) >>> 0) ^
+          ((key[(total >>> 11) & 3] + total) >>> 0);
+        v1 = (v1 - (mix >>> 0)) >>> 0;
+        total = (total - DELTA) >>> 0;
+        mix =
+          (((((v1 << 4) >>> 0) ^ (v1 >>> 5)) + v1) >>> 0) ^
+          ((key[total & 3] + total) >>> 0);
+        v0 = (v0 - (mix >>> 0)) >>> 0;
+      }
+      const d = dstOffset + off;
+      dst[d] = v0 & 0xff;
+      dst[d + 1] = (v0 >>> 8) & 0xff;
+      dst[d + 2] = (v0 >>> 16) & 0xff;
+      dst[d + 3] = (v0 >>> 24) & 0xff;
+      dst[d + 4] = v1 & 0xff;
+      dst[d + 5] = (v1 >>> 8) & 0xff;
+      dst[d + 6] = (v1 >>> 16) & 0xff;
+      dst[d + 7] = (v1 >>> 24) & 0xff;
+    }
+  }
+
+  function decodeField(bytes, start, end) {
+    let text = "";
+    for (let i = start; i < end && bytes[i] !== 0; i++) text += String.fromCharCode(bytes[i]);
+    return text.replace(/\s+$/, "");
+  }
+
+  function parseHeader(header) {
+    if (!header || header.length !== HEADER_SIZE) {
+      throw new DecryptError("header must be 64 bytes");
+    }
+    return {
+      serial: decodeField(header, 0x00, 0x0c),
+      editor: decodeField(header, 0x0c, 0x20),
+      timestamp: decodeField(header, 0x20, 0x2c),
+      protocol: decodeField(header, 0x2c, 0x30),
+      vin: decodeField(header, 0x30, 0x36),
+    };
+  }
+
+  function validContainerLength(length) {
+    return Number.isInteger(length) && length > HEADER_SIZE && (length - HEADER_SIZE) % 8 === 0;
+  }
+
+  function decryptHeader(bytes, key) {
+    if (!bytes || bytes.length < HEADER_SIZE) {
+      throw new DecryptError("container is smaller than its 64-byte header");
+    }
+    const header = new Uint8Array(HEADER_SIZE);
+    xteaDecryptInto(bytes, 0, HEADER_SIZE, header, 0, key);
+    for (let i = 0x38; i < HEADER_SIZE; i++) {
+      if (header[i] !== 0) return null;
+    }
+    const fields = parseHeader(header);
+    if (!SERIAL_RE.test(fields.serial)) return null;
+    return fields;
+  }
+
+  function indexOfBytesCI(haystack, needleLower, from) {
+    const last = haystack.length - needleLower.length;
+    for (let i = Math.max(0, from); i <= last; i++) {
+      if (lowerByte(haystack[i]) !== needleLower[0]) continue;
+      let j = 1;
+      while (j < needleLower.length && lowerByte(haystack[i + j]) === needleLower[j]) j++;
+      if (j === needleLower.length) return i;
+    }
+    return -1;
+  }
+
+  function findBlockEnd(image, from) {
+    let blank = 0;
+    for (let i = from; i < image.length; i++) {
+      const b = image[i];
+      if (b === 0x00 || b === 0xff) {
+        blank++;
+        if (blank >= BLANK_RUN) return i - blank + 1;
+      } else {
+        blank = 0;
+      }
+    }
+    return image.length;
+  }
+
+  function findMarkerRegions(image) {
+    const found = [];
+    const seen = new Set();
+    for (let m = 0; m < MARKERS.length; m++) {
+      const marker = MARKERS[m];
+      let from = 0;
+      while (from <= image.length - marker.length) {
+        const start = indexOfBytesCI(image, marker, from);
+        if (start < 0) break;
+        const key = start + ":" + marker.length;
+        if (!seen.has(key)) {
+          seen.add(key);
+          const end = findBlockEnd(image, start + marker.length);
+          found.push({
+            start: start,
+            end: end,
+            size: end - start,
+            reason: MARKER_TEXT[m],
+          });
+        }
+        from = start + marker.length;
+      }
+    }
+    found.sort(function (a, b) { return a.start - b.start; });
+    const merged = [];
+    for (let i = 0; i < found.length; i++) {
+      const region = found[i];
+      const last = merged[merged.length - 1];
+      if (last && region.start <= last.end) {
+        if (region.end > last.end) {
+          last.end = region.end;
+          last.size = last.end - last.start;
+        }
+      } else {
+        merged.push({
+          start: region.start,
+          end: region.end,
+          size: region.size,
+          reason: region.reason,
+        });
+      }
+    }
+    return merged;
+  }
+
+  function stripImage(image, regions, fillByte) {
+    if (!Number.isInteger(fillByte) || fillByte < 0 || fillByte > 0xff) {
+      throw new DecryptError("fill byte must be 0..255");
+    }
+    const out = new Uint8Array(image);
+    for (let i = 0; i < regions.length; i++) {
+      out.fill(fillByte, regions[i].start, regions[i].end);
+    }
+    return out;
+  }
+
+  async function sha256Hex(bytes) {
+    if (typeof crypto === "undefined" || !crypto.subtle) return null;
+    try {
+      const digest = await crypto.subtle.digest("SHA-256", bytes);
+      return bytesToHex(new Uint8Array(digest));
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function selfTest() {
+    const results = [];
+    const check = function (ok, description) {
+      results.push({ ok: Boolean(ok), description: description });
+    };
+    try {
+      const keyA = deriveKey("TST000000001");
+      check(
+        keyA[0] === 0x0046 && keyA[1] === 0x041a && keyA[2] === 0x032c && keyA[3] === 0x0001,
+        "recovery key for TST000000001"
+      );
+      const keyB = deriveKey("TST000000002");
+      check(
+        keyB[0] === 0x0046 && keyB[1] === 0x041a && keyB[2] === 0x0336 && keyB[3] === 0x0001,
+        "recovery key for TST000000002"
+      );
+      const headerCipher = hexToBytes(
+        "2a66b8b3d1c44fb5598e684d8722312901c08f612984a7395abdf793c8e5d36a" +
+        "97f85841c7a955b7e79a547d76e3a932709e301ccfb9095b2e83f5606e06430e"
+      );
+      const fields = decryptHeader(headerCipher, keyA);
+      check(
+        Boolean(fields) &&
+        fields.serial === "TST000000001" &&
+        fields.protocol === "001F" &&
+        fields.vin === "981747" &&
+        fields.timestamp === "202610171200",
+        "known-answer header decryption"
+      );
+      check(decryptHeader(headerCipher, keyB) === null, "wrong serial is rejected");
+      const sample = new Uint8Array(256).fill(0x5a);
+      sample.set(asciiBytes("NoReAd"), 16);
+      sample.fill(0x00, 48, 112);
+      sample.set(asciiBytes("NO READ"), 128);
+      sample.fill(0xff, 160, 224);
+      const regions = findMarkerRegions(sample);
+      check(
+        regions.length === 2 && regions[0].start === 16 && regions[0].end === 48 &&
+        regions[1].start === 128 && regions[1].end === 160,
+        "both markers match without case sensitivity and stop before blank runs"
+      );
+      const original = new Uint8Array(sample);
+      const stripped = stripImage(sample, regions, 0x00);
+      check(
+        stripped.length === sample.length && sample.every(function (b, i) { return b === original[i]; }) &&
+        stripped.every(function (b, i) {
+          return b === ((i >= 16 && i < 48) || (i >= 128 && i < 160) ? 0 : original[i]);
+        }),
+        "stripping preserves the original, length, and all bytes outside the preview"
+      );
+    } catch (error) {
+      results.push({ ok: false, description: "self-test threw: " + String(error.message || error) });
+    }
+    return {
+      passed: results.filter(function (r) { return r.ok; }).length,
+      total: results.length,
+      results: results,
+    };
+  }
+
+  global.EKRDecrypt = {
+    HEADER_SIZE: HEADER_SIZE,
+    CHUNK_SIZE: CHUNK_SIZE,
+    BLANK_RUN: BLANK_RUN,
+    MARKER_TEXT: MARKER_TEXT,
+    DecryptError: DecryptError,
+    deriveKey: deriveKey,
+    xteaDecryptInto: xteaDecryptInto,
+    parseHeader: parseHeader,
+    validContainerLength: validContainerLength,
+    decryptHeader: decryptHeader,
+    findMarkerRegions: findMarkerRegions,
+    stripImage: stripImage,
+    sha256Hex: sha256Hex,
+    selfTest: selfTest,
+    hexToBytes: hexToBytes,
+    bytesToHex: bytesToHex,
+  };
+})(typeof window !== "undefined" ? window : globalThis);
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  var EKR = window.EKRDecrypt;
+  if (!EKR) {
+    document.body.innerHTML = '<main class="sheet"><p class="field-error">The decrypt core did not load. Reopen this file in a browser.</p></main>';
+    return;
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state = {
+    file: null,
+    image: null,
+    fields: null,
+    outputName: "",
+    stripped: null,
+    stripName: "",
+    stripRegions: null,
+    busy: false,
+    digestToken: 0,
+    prefilledSerial: "",
+  };
+
+  var PROTOCOL_NAMES = {
+    "0042": "SIM2K-250 CAN BOOT",
+    "0023": "SIM2K-250 OBD",
+    "001F": "SIM2K-250 Recovery",
+    "0039": "EDC17C08 TSW Boot Recovery",
+    "003B": "EDC17C53 TSW Boot Recovery",
+    "003A": "EDC17CP14 TSW Boot Recovery",
+    "003C": "EDC17C57 TSW Boot Recovery",
+    "0040": "CPEGD 3.20.1",
+    "0041": "CPEGD 3.20.1 Recovery",
+    "001E": "Delphi MT86",
+    "001D": "CPEGD 2.20.1 / CPGDSH 2.26.1",
+    "0016": "CPEGD 2.20.1 / CPGDSH 2.26.1",
+    "0021": "CPEGD 2.2X.3/4 Full",
+    "0047": "CPEGD 2.2X.3/4 OBD",
+    "0044": "CPEGD 3.20.1 CAN FD Bench",
+    "0046": "CPEGD 3.20.1 CAN FD Full Data Bench",
+    "0045": "CPEGD 3.20.1 CAN FD Recovery",
+    "0028": "CPTSH 2.08.1/2",
+    "001B": "MEDG17.9.8",
+    "0036": "TC60 / TC80 TCU",
+    "0027": "SIM2K-141.1 GEN2",
+    "0026": "SIM2K-141 GEN1",
+    "0015": "SIM2K-240 / 245",
+    "0043": "SIM2K-260 CAN BOOT",
+    "0024": "SIM2K-260 OBD",
+    "0025": "SIM2K-260 Recovery",
+    "002F": "SIM2K-305 OBD",
+    "100B": "SpyBOOT SIM2K-250",
+    "003F": "TAD801 8DCT",
+    "0038": "Toyota GR Yaris",
+  };
+
+  function reducedMotion() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function scrollTo(el) {
+    if (!el) return;
+    el.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" });
+  }
+
+  function nextFrame() {
+    return new Promise(function (resolve) { setTimeout(resolve, 0); });
+  }
+
+  function formatSize(n) {
+    var mb = n / (1024 * 1024);
+    return "0x" + n.toString(16).toUpperCase() +
+      " · " + n.toLocaleString() + " bytes" +
+      (mb >= 1 ? " · " + mb.toFixed(1) + " MB" : "");
+  }
+
+  function formatByteCount(n) {
+    return n.toLocaleString() + " bytes (0x" + n.toString(16).toUpperCase() + ")";
+  }
+
+  function formatTimestamp(ts) {
+    if (!/^\d{12}$/.test(ts)) return null;
+    return ts.slice(0, 4) + "-" + ts.slice(4, 6) + "-" + ts.slice(6, 8) +
+      " " + ts.slice(8, 10) + ":" + ts.slice(10, 12) + " UTC";
+  }
+
+  function outputName(name, suffix) {
+    var stem = name.replace(/\.[^.\/\\]+$/, "");
+    return (stem || "image") + suffix;
+  }
+
+  function validateSerial(serial) {
+    if (!serial) return "Enter the 12-character device serial.";
+    if (serial.length !== 12) return "Serial must be exactly 12 characters.";
+    if (!/^[\x21-\x7e]{12}$/.test(serial)) return "Serial contains a character that cannot be used.";
+    if (!/^[0-9]{9}$/.test(serial.slice(3))) {
+      return "The last 9 characters must be digits (for example TST000000001).";
+    }
+    return null;
+  }
+
+  function showError(el, message) {
+    el.textContent = message;
+    el.hidden = false;
+  }
+
+  function clearError(el) {
+    el.textContent = "";
+    el.hidden = true;
+  }
+
+  function setStatus(message, kind) {
+    var el = $("status");
+    el.textContent = message;
+    el.className = "run-status" + (kind ? " " + kind : "");
+  }
+
+  function setProgress(fraction, caption) {
+    var f = Math.max(0, Math.min(1, fraction));
+    var pct = Math.round(f * 100);
+    var run = $("ruler-run");
+    var fill = $("ruler-fill");
+    var edge = $("ruler-edge");
+    fill.style.transform = "scaleX(" + f + ")";
+    edge.style.transform = "translateX(" + Math.max(0, f * run.clientWidth - 1) + "px)";
+    edge.style.opacity = f > 0 ? "1" : "0";
+    run.setAttribute("aria-valuenow", String(pct));
+    run.setAttribute("aria-valuetext", caption + " · " + pct + "%");
+    $("ruler-status").textContent = caption;
+    $("ruler-percent").textContent = pct + "%";
+  }
+
+  function isReady() {
+    if (!state.file || state.busy) return false;
+    if (!EKR.validContainerLength(state.file.size)) return false;
+    return validateSerial($("serial").value.trim()) === null;
+  }
+
+  function updateReady() {
+    $("decrypt").disabled = !isReady();
+  }
+
+  function setBusy(busy) {
+    state.busy = busy;
+    document.body.classList.toggle("busy", busy);
+    $("drop").disabled = busy;
+    $("file").disabled = busy;
+    $("change-file").disabled = busy;
+    $("serial").disabled = busy;
+    $("decrypt").disabled = busy || !isReady();
+    $("decrypt").textContent = busy ? "Decrypting…" : "Decrypt & save .bin";
+    $("strip-scan").disabled = busy;
+    $("strip-apply").disabled = busy;
+    $("save").disabled = busy;
+    $("save-stripped").disabled = busy;
+    $("reset").disabled = busy;
+  }
+
+  function clearResultUI() {
+    state.digestToken++;
+    $("result").hidden = true;
+    $("fields").textContent = "";
+    $("output-name").textContent = "";
+    $("output-size").textContent = "";
+    $("strip-panel").hidden = true;
+    $("strip-summary").textContent = "";
+    $("strip-list").textContent = "";
+    $("stripped-row").hidden = true;
+    $("stripped-name").textContent = "";
+    $("stripped-size").textContent = "";
+    $("strip-apply").hidden = false;
+    $("fill-byte").disabled = false;
+    state.stripRegions = null;
+  }
+
+  function resetOutput() {
+    state.image = null;
+    state.fields = null;
+    state.outputName = "";
+    state.stripped = null;
+    state.stripName = "";
+    state.stripRegions = null;
+    clearResultUI();
+  }
+
+  function resetAll() {
+    state.file = null;
+    state.prefilledSerial = "";
+    $("file").value = "";
+    $("serial").value = "";
+    $("file-row").hidden = true;
+    $("drop").hidden = false;
+    $("serial-note").hidden = true;
+    clearError($("file-error"));
+    clearError($("serial-error"));
+    $("serial").removeAttribute("aria-invalid");
+    resetOutput();
+    setStatus("Choose a container and enter its serial.", "");
+    setProgress(0, "idle · choose a container");
+    updateReady();
+    $("drop").focus();
+  }
+
+  function suggestSerial(name) {
+    var note = $("serial-note");
+    var match = name.match(/([A-Za-z]{3}\d{9})/);
+    if (!match) {
+      note.hidden = true;
+      return;
+    }
+    var serial = $("serial");
+    if (!serial.value.trim()) {
+      serial.value = match[1];
+      state.prefilledSerial = match[1];
+      note.textContent = "Prefilled from the file name. Edit if needed.";
+      note.hidden = false;
+    } else {
+      note.hidden = true;
+    }
+  }
+
+  function selectFile(file) {
+    if (!file) return;
+    clearError($("file-error"));
+    clearError($("serial-error"));
+    $("serial").removeAttribute("aria-invalid");
+    resetOutput();
+
+    if (!EKR.validContainerLength(file.size)) {
+      state.file = null;
+      $("drop").hidden = false;
+      $("file-row").hidden = true;
+      showError(
+        $("file-error"),
+        "This file is not an EK1Pro container. Expected a 64-byte header plus an image that is a positive multiple of 8 bytes."
+      );
+      setStatus("That file is not a valid .ekr container.", "bad");
+      setProgress(0, "idle · choose a container");
+      updateReady();
+      return;
+    }
+
+    state.file = file;
+    $("file-name").textContent = file.name;
+    $("file-size").textContent = formatSize(file.size);
+    $("drop").hidden = true;
+    $("file-row").hidden = false;
+    setStatus("Container ready. Enter the device serial.", "");
+    setProgress(0, "idle · container ready");
+    suggestSerial(file.name);
+    updateReady();
+    if (!$("serial").value.trim()) $("serial").focus();
+  }
+
+  function renderFields() {
+    var fields = state.fields;
+    var image = state.image;
+    var rows = [
+      ["Serial", fields.serial, null, null],
+      ["Protocol", fields.protocol, PROTOCOL_NAMES[fields.protocol] || null, null],
+      ["Created", formatTimestamp(fields.timestamp) || fields.timestamp, fields.timestamp, null],
+      ["Editor", fields.editor || "—", null, null],
+      ["VIN skip", fields.vin || "—", null, null],
+      ["Image", formatSize(image.length), null, null],
+      ["SHA-256", "computing…", null, "field-sha256"],
+    ];
+    var dl = $("fields");
+    dl.textContent = "";
+    rows.forEach(function (row) {
+      var dt = document.createElement("dt");
+      dt.textContent = row[0];
+      var dd = document.createElement("dd");
+      if (row[3]) dd.id = row[3];
+      var main = document.createElement("span");
+      main.textContent = row[1];
+      dd.appendChild(main);
+      if (row[2]) {
+        var sub = document.createElement("span");
+        sub.className = "sub";
+        sub.textContent = row[2];
+        dd.appendChild(sub);
+      }
+      dl.appendChild(dt);
+      dl.appendChild(dd);
+    });
+  }
+
+  function computeDigest() {
+    var token = ++state.digestToken;
+    EKR.sha256Hex(state.image).then(function (digest) {
+      if (token !== state.digestToken) return;
+      var el = $("field-sha256");
+      if (el) el.textContent = digest || "not available in this browser";
+    });
+  }
+
+  function showResult() {
+    $("output-name").textContent = state.outputName;
+    $("output-size").textContent = formatSize(state.image.length);
+    renderFields();
+    $("result").hidden = false;
+    $("result-title").focus({ preventScroll: true });
+    scrollTo($("result"));
+    computeDigest();
+  }
+
+  async function decrypt() {
+    if (state.busy) return;
+    clearError($("file-error"));
+    clearError($("serial-error"));
+    $("serial").removeAttribute("aria-invalid");
+
+    var serial = $("serial").value.trim();
+    var serialProblem = validateSerial(serial);
+    if (serialProblem) {
+      showError($("serial-error"), serialProblem);
+      $("serial").setAttribute("aria-invalid", "true");
+      $("serial").focus();
+      setStatus("Check the device serial.", "bad");
+      return;
+    }
+    if (!state.file) {
+      setStatus("Choose a container first.", "bad");
+      return;
+    }
+    if (!EKR.validContainerLength(state.file.size)) {
+      showError($("file-error"), "This file is not a valid .ekr container.");
+      return;
+    }
+
+    setBusy(true);
+    resetOutput();
+    setStatus("Checking the serial…", "busy");
+    setProgress(0.01, "checking serial");
+
+    try {
+      var buffer = await state.file.arrayBuffer();
+      var bytes = new Uint8Array(buffer);
+      if (!EKR.validContainerLength(bytes.length)) {
+        throw new EKR.DecryptError("This file is not a valid .ekr container.");
+      }
+
+      var key = EKR.deriveKey(serial);
+      var fields = EKR.decryptHeader(bytes, key);
+      if (!fields || fields.serial !== serial) {
+        throw { wrongSerial: true };
+      }
+
+      var imageLength = bytes.length - EKR.HEADER_SIZE;
+      var image = new Uint8Array(imageLength);
+      setStatus("Decrypting the image…", "busy");
+
+      for (var off = 0; off < imageLength; off += EKR.CHUNK_SIZE) {
+        var len = Math.min(EKR.CHUNK_SIZE, imageLength - off);
+        EKR.xteaDecryptInto(bytes, EKR.HEADER_SIZE + off, len, image, off, key);
+        var done = off + len;
+        setProgress(0.02 + 0.98 * (done / imageLength), "decrypting image");
+        await nextFrame();
+      }
+
+      state.image = image;
+      state.fields = fields;
+      state.outputName = outputName(state.file.name, ".bin");
+      setProgress(1, "decrypted · " + formatSize(image.length));
+      setStatus(
+        "Done. " + formatSize(image.length) + " decrypted. If the download did not start, use Save .bin.",
+        ""
+      );
+      showResult();
+      download(image, state.outputName);
+    } catch (error) {
+      if (error && error.wrongSerial) {
+        showError(
+          $("serial-error"),
+          "That serial does not unlock this container. Check the 12-character serial and try again."
+        );
+        $("serial").setAttribute("aria-invalid", "true");
+        $("serial").focus();
+        setStatus("The serial did not unlock this container.", "bad");
+      } else {
+        setStatus(error && error.message ? error.message : "Decryption failed.", "bad");
+      }
+      setProgress(0, "idle · nothing decrypted");
+    } finally {
+      setBusy(false);
+      updateReady();
+    }
+  }
+
+  function scanStrip() {
+    if (!state.image) return;
+    state.stripped = null;
+    state.stripName = "";
+    $("stripped-row").hidden = true;
+    var regions = EKR.findMarkerRegions(state.image);
+    state.stripRegions = regions;
+    $("strip-panel").hidden = false;
+    $("strip-list").textContent = "";
+    $("strip-apply").hidden = regions.length === 0;
+    $("fill-byte").disabled = regions.length === 0;
+
+    if (!regions.length) {
+      $("strip-summary").className = "run-status";
+      $("strip-summary").textContent =
+        "No “noread” or “no read” marker found. Nothing to strip.";
+      scrollTo($("strip-panel"));
+      return;
+    }
+
+    var total = regions.reduce(function (sum, r) { return sum + r.size; }, 0);
+    $("strip-summary").className = "run-status";
+    $("strip-summary").textContent =
+      "Found " + regions.length + " region" + (regions.length === 1 ? "" : "s") +
+      " · " + formatByteCount(total) + " total. Review the ranges, then strip.";
+
+    var table = document.createElement("div");
+    table.className = "strip-table";
+    var head = document.createElement("div");
+    head.className = "strip-row strip-row-head";
+    ["start", "size", "end", "reason"].forEach(function (text) {
+      var cell = document.createElement("span");
+      cell.textContent = text;
+      head.appendChild(cell);
+    });
+    table.appendChild(head);
+
+    regions.forEach(function (r) {
+      var row = document.createElement("div");
+      row.className = "strip-row";
+      var start = document.createElement("span");
+      start.className = "mono";
+      start.textContent = "0x" + r.start.toString(16).toUpperCase().padStart(6, "0");
+      var size = document.createElement("span");
+      size.className = "mono";
+      size.textContent = "0x" + r.size.toString(16).toUpperCase();
+      var end = document.createElement("span");
+      end.className = "mono";
+      end.textContent = "0x" + r.end.toString(16).toUpperCase().padStart(6, "0");
+      var reason = document.createElement("span");
+      reason.className = "muted";
+      reason.textContent = r.reason;
+      row.appendChild(start);
+      row.appendChild(size);
+      row.appendChild(end);
+      row.appendChild(reason);
+      table.appendChild(row);
+    });
+    $("strip-list").appendChild(table);
+
+    var note = document.createElement("p");
+    note.className = "help";
+    note.style.marginTop = "8px";
+    note.textContent =
+      "Offsets are in the decrypted .bin. Each region runs from the marker to the next run of " +
+      EKR.BLANK_RUN + " blank (00/FF) bytes, or to the end of the image.";
+    $("strip-list").appendChild(note);
+    scrollTo($("strip-panel"));
+  }
+
+  function applyStrip() {
+    if (!state.image || !state.stripRegions || !state.stripRegions.length) return;
+    var fill = Number($("fill-byte").value);
+    var total = state.stripRegions.reduce(function (sum, r) { return sum + r.size; }, 0);
+    var count = state.stripRegions.length;
+    var stripped = EKR.stripImage(state.image, state.stripRegions, fill);
+    state.stripped = stripped;
+    state.stripName = outputName(state.file.name, ".stripped.bin");
+    $("stripped-name").textContent = state.stripName;
+    $("stripped-size").textContent = formatSize(stripped.length);
+    $("stripped-row").hidden = false;
+    $("strip-panel").hidden = true;
+    setStatus(
+      "Stripped " + count + " region" + (count === 1 ? "" : "s") +
+      " · " + formatByteCount(total) + " with " + (fill === 0 ? "00" : "FF") +
+      ". Original .bin unchanged.",
+      ""
+    );
+    download(stripped, state.stripName);
+    scrollTo($("stripped-row"));
+  }
+
+  function download(bytes, name) {
+    var blob = new Blob([bytes], { type: "application/octet-stream" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+  }
+
+  function runSelfTest() {
+    var result = EKR.selfTest();
+    var el = $("selftest-result");
+    el.textContent = result.passed + "/" + result.total + " checks passed";
+    el.className = "selftest-result " + (result.passed === result.total ? "ok" : "bad");
+    el.title = result.results
+      .filter(function (r) { return !r.ok; })
+      .map(function (r) { return r.description; })
+      .join("; ");
+  }
+
+  function init() {
+    $("drop").addEventListener("click", function () { $("file").click(); });
+    $("change-file").addEventListener("click", function () { $("file").click(); });
+    $("file").addEventListener("change", function () {
+      var file = $("file").files[0];
+      $("file").value = "";
+      if (file) selectFile(file);
+    });
+
+    var dragDepth = 0;
+    ["dragenter", "dragover"].forEach(function (type) {
+      $("drop").addEventListener(type, function (event) {
+        event.preventDefault();
+        if (state.busy) return;
+        if (type === "dragenter") dragDepth++;
+        $("drop").classList.add("drop-hot");
+      });
+    });
+    ["dragleave", "drop"].forEach(function (type) {
+      $("drop").addEventListener(type, function (event) {
+        event.preventDefault();
+        dragDepth = type === "drop" ? 0 : Math.max(0, dragDepth - 1);
+        if (dragDepth === 0) $("drop").classList.remove("drop-hot");
+      });
+    });
+    $("drop").addEventListener("drop", function (event) {
+      if (state.busy) return;
+      var files = event.dataTransfer && event.dataTransfer.files;
+      if (files && files.length) selectFile(files[0]);
+    });
+    ["dragover", "drop"].forEach(function (type) {
+      document.addEventListener(type, function (event) {
+        if (!$("drop").contains(event.target)) event.preventDefault();
+      });
+    });
+
+    $("serial").addEventListener("input", function () {
+      clearError($("serial-error"));
+      $("serial").removeAttribute("aria-invalid");
+      if (state.prefilledSerial && $("serial").value.trim() !== state.prefilledSerial) {
+        state.prefilledSerial = "";
+        $("serial-note").hidden = true;
+      }
+      updateReady();
+    });
+    $("serial").addEventListener("blur", function () {
+      var serial = $("serial").value.trim();
+      if (!serial) return;
+      var problem = validateSerial(serial);
+      if (problem) {
+        showError($("serial-error"), problem);
+        $("serial").setAttribute("aria-invalid", "true");
+      } else {
+        clearError($("serial-error"));
+        $("serial").removeAttribute("aria-invalid");
+      }
+    });
+
+    $("decrypt").addEventListener("click", decrypt);
+    $("save").addEventListener("click", function () {
+      if (state.image) download(state.image, state.outputName);
+    });
+    $("save-stripped").addEventListener("click", function () {
+      if (state.stripped) download(state.stripped, state.stripName);
+    });
+    $("strip-scan").addEventListener("click", scanStrip);
+    $("strip-apply").addEventListener("click", applyStrip);
+    $("strip-cancel").addEventListener("click", function () {
+      $("strip-panel").hidden = true;
+      state.stripRegions = null;
+    });
+    $("reset").addEventListener("click", resetAll);
+    $("selftest").addEventListener("click", runSelfTest);
+
+    setProgress(0, "idle · choose a container");
+    setStatus("Choose a container and enter its serial.", "");
+    updateReady();
+    runSelfTest();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
